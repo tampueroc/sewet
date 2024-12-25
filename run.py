@@ -1,10 +1,10 @@
-from dataset.dataset import FireDataset
+from src.dataset.dataset import FireDataset
 import torch
 from tqdm import tqdm
 import torch.optim as optim
-from models.vision_transformer import VisionTransformer
-from utils.arg_parser import arg_parser
-from utils.early_stopper import EarlyStopper
+from src.models.vision_transformer import VisionTransformer
+from src.utils.arg_parser import arg_parser
+from src.utils.early_stopper import EarlyStopper
 
 args = arg_parser()
 

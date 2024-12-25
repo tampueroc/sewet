@@ -1,4 +1,6 @@
-from layers.attention import Attention
+from src.layers.drop import DropPath
+from src.layers.mlp import Mlp
+from src.layers.attention import Attention
 import torch.nn as nn
 
 

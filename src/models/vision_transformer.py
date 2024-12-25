@@ -1,12 +1,12 @@
-from models.base_model import BaseModel
+from src.models.base_model import BaseModel
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from functools import partial
 from collections import OrderedDict
 
-from layers.block import Block
-from layers.patch_embedding import PatchEmbed
+from src.layers.block import Block
+from src.layers.patch_embedding import PatchEmbed
 
 
 class VisionTransformer(BaseModel):
@@ -16,9 +16,9 @@ class VisionTransformer(BaseModel):
         https://arxiv.org/abs/2010.11929
     """
     def __init__(self,
-                 img_size=224,
+                 img_size=400,
                  patch_size=16,
-                 in_chans=3,
+                 in_chans=1,
                  num_classes=1000,
                  embed_dim=768,
                  depth=12,
