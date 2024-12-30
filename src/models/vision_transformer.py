@@ -74,7 +74,7 @@ class VisionTransformer(BaseModel):
                 dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
                 drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer)
             for i in range(depth)])
-        self.norm = norm_layer(embed_dim)
+        self.norm = norm_layer(embed_dim * 2)
 
         # Final convolution for segmentation mask
         self.segmentation_head = nn.Conv2d(embed_dim, num_classes, kernel_size=1)
