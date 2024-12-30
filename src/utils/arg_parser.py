@@ -23,12 +23,14 @@ def arg_parser():
                         help="Learning rate for the optimizer (default: %(default)s)")
     parser.add_argument('--num_epochs', type=int, default=10, required=True,
                         help="Number of epochs for training (default: %(default)s)")
+    parser.add_argument('-depth' , type=int, default=6,
+                        help='Depth of the model')
 
     parser.add_argument('-gpu', type=str, default='0',
                       help='GPU to run the model on')
     parser.add_argument('-device', type=str, default='gpu',
                       help='Device to run the model on')
-    parser.add_argument('-batch_size', type=int, default=1,
+    parser.add_argument('-batch_size', type=int, default=32,
                     help='Batch size for the fire')
     parser.add_argument('-num_workers', type=int, default=4,
                     help='Number of workers for the fire')

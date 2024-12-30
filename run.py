@@ -33,7 +33,8 @@ validation_loader = torch.utils.data.DataLoader(validation_dataset,
                                                 drop_last=args.drop_last)
 
 model = VisionTransformer(
-    in_chans=1
+    in_chans=1,
+    depth=args.depth
 )
 
 if args.device == 'cuda' and torch.cuda.is_available():
