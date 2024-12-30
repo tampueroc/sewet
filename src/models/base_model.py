@@ -14,7 +14,7 @@ class BaseModel(nn.Module):
     def __init__(self):
         super(BaseModel, self).__init__()
         # Loss functions
-        self.loss_function = F.binary_cross_entropy
+        self.loss_function = F.binary_cross_entropy_with_logits
         self.loss_function_params = {'reduction': 'sum'}
         # Loss tracking variables
         self.train_loss_array: List[float] = []

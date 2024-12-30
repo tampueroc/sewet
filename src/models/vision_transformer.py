@@ -154,6 +154,5 @@ class VisionTransformer(BaseModel):
         x = self.segmentation_head(x)  # (batch_size, num_classes, H, W)
         x = F.interpolate(x, size=(H * patch_size, W * patch_size),
                       mode='bilinear', align_corners=False)
-        x = torch.sigmoid(x)
         return x
 
