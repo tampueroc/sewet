@@ -152,8 +152,9 @@ class VisionTransformer(BaseModel):
         B, N, C = x.shape
         H = W = int(N ** 0.5)
         x = x.transpose(1, 2).reshape(B, C, H, W)
+        patch_size = self.fire_embed.patch_size[0]  # Assuming square patches
         x = self.segmentation_head(x)  # (batch_size, num_classes, H, W)
-        x = F.interpolate(x, size=(H * self.fire_embed.patch_size, W * self.fire_embed.patch_size),
+        x = F.interpolate(x, size=(H * patch_size, W * patch_size),
                       mode='bilinear', align_corners=False)
         return x
 
