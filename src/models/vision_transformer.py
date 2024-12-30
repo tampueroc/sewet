@@ -77,7 +77,7 @@ class VisionTransformer(BaseModel):
         self.norm = norm_layer(embed_dim * 2)
 
         # Final convolution for segmentation mask
-        self.segmentation_head = nn.Conv2d(embed_dim, num_classes, kernel_size=1)
+        self.segmentation_head = nn.Conv2d(embed_dim * 2, num_classes, kernel_size=1)
 
         nn.init.trunc_normal_(self.pos_embed, std=.02)
         nn.init.trunc_normal_(self.cls_token, std=.02)
