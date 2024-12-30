@@ -118,7 +118,13 @@ class VisionTransformer(BaseModel):
 
         # Patch embedding
         x1 = self.fire_embed(x1)  # (batch_size, num_patches, embed_dim)
+        print(f"Fire Embedding: {x1.shape}")
         x2 = self.landscape_embed(x2)  # (batch_size, num_patches, embed_dim)
+        print(f"Landscape Embedding: {x2.shape}")
+
+        # Concatenate fire and landscape embeddings
+        x = torch.cat((x1, x2), dim=1)
+        print(f"Concatenated Embedding: {x.shape}")
 
         cls_tokens = self.cls_token.expand(B, -1, -1)  # (batch_size, 1, embed_dim)
         x = torch.cat((cls_tokens, x), dim=1)  # (batch_size, num_patches + 1, embed_dim)
