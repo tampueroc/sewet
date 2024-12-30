@@ -30,5 +30,5 @@ class TubletEmbedding(nn.Module):
         Args:
         x (torch.Tensor): Input tensor of shape (B, C, T, H, W).
         """
-        x = self.conv3d(x) # (B, d, $n_{t}$, $n_{h}$, $n_{w}$)
+        x = self.conv3d(x)  # (B, d, $n_{t}$, $n_{h}$, $n_{w}$)
         return self.to_seq(x)

@@ -24,11 +24,26 @@ set_seed(42)
 
 
 class FireDataset(Dataset):
-    def __init__(self, data_dir, sequence_length=3, split='train', transform=None, weather: bool = False, topological_features: bool = False):
+    def __init__(self,
+                 data_dir,
+                 sequence_length=3,
+                 split='train',
+                 transform=None,
+                 weather: bool = False,
+                 topological_features: bool = False,
+                 binary_channel_normalization: bool = False
+                 ):
         self.data_dir = os.path.expanduser(f"~/{data_dir}")
         self.sequence_length = sequence_length
         self.transform = transform
         self.samples = []
+        self.binary_channel_normalization = binary_channel_normalization
+        self.landscape_max = None
+        self.landscape_min = None
+        self.max_ws = None
+        self.min_ws = None
+        self.max_wd = None
+        self.min_wd = None
         if topological_features is True:
             self._load_landscape_data()
             self._load_spatial_index()
@@ -55,6 +70,11 @@ class FireDataset(Dataset):
             self.landscape_min = self.landscape_data.min(dim=["x", "y"]).values
         # Normalize the landscape data
         for i in range(len(self.landscape_max)):
+            if self.binary_channel_normalization is True:
+                unique_values = np.unique(self.landscape_data[i, :, :].values)
+                if np.array_equal(unique_values, [-1, 1]) or np.array_equal(unique_values, [0, 1]):
+                    print(f"Skipping normalization for layer {i}")
+                    continue
             self.landscape_data[i, :, :] = (self.landscape_data[i, :, :] - self.landscape_min[i]) / (self.landscape_max[i] - self.landscape_min[i])
 
     def _load_weather_data(self):
@@ -204,32 +224,31 @@ class FireDataset(Dataset):
         isochrone_image = read_image(iso_frame_path)
         isochrone_mask = torch.where(isochrone_image[1] == 231, 1.0, 0.0).unsqueeze(0)
 
+        # Initialize the output tuple
+        outputs = [past_frames_expanded]
+
         # Get landscape data
         if self._topological_features is True:
             landscape_tensor = sample['landscape_features']
-            sequence_length = past_frames_expanded.shape[0]  # Should be 1
-            landscape_repeated = landscape_tensor.unsqueeze(0).repeat(sequence_length, 1, 1, 1)
-
-            # Combine past frames and landscape data
-            input_tensor = torch.cat((past_frames_expanded, landscape_repeated), dim=1)  # Shape: [sequence_length, 1 + num_features, height, width]
-        else:
-            input_tensor = past_frames_expanded
+            if self.transform:
+                landscape_tensor = self.transform(landscape_tensor)
+            outputs.append(landscape_tensor)
 
         if self.transform:
-            # Apply transform to each time step
+            # Apply transform to each time step of input tensor
             input_tensor_transformed = []
-            for t in range(input_tensor.shape[0]):
-                transformed = self.transform(input_tensor[t])
+            for t in range(past_frames_expanded.shape[0]):
+                transformed = self.transform(past_frames_expanded[t])
                 input_tensor_transformed.append(transformed)
-            input_tensor = torch.stack(input_tensor_transformed)
+            past_frames_expanded = torch.stack(input_tensor_transformed)
             isochrone_mask = self.transform(isochrone_mask)
 
         # Load weather data
-        if self._weather is True:
+        if self._weather:
             weather_tensor = self._get_weather_data(sample)
-            return (input_tensor, weather_tensor), isochrone_mask
-        return input_tensor, isochrone_mask
+            outputs.append(weather_tensor)
 
+        return outputs, isochrone_mask
 
     def __len__(self):
         return len(self.samples)
@@ -253,3 +272,16 @@ class FireDataset(Dataset):
             print("{:<10} {:<10}".format(length, count))
         print("-" * 20)
         print("{:<10} {:<10}\n".format("Total", total))
+
+    def get_landscape_max(self):
+        return self.landscape_max
+
+    def get_landscape_min(self):
+        return self.landscape_min
+
+    def get_weather_max(self):
+        return self.max_ws, self.max_wd
+
+    def get_weather_min(self):
+        return self.min_ws, self.min_wd
+

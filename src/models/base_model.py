@@ -28,8 +28,6 @@ class BaseModel(nn.Module):
         self.train_time_array: List[float] = []
         self.validation_time_array: List[float] = []
         self._timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M')
-        # Attention weights (optional)
-        self.attention_weights_storage = []
 
     def get_timestamp(self):
         return self._timestamp
@@ -72,7 +70,7 @@ class BaseModel(nn.Module):
         """
         return {key: metric.compute().item() for key, metric in self.metrics.items()}
 
-    def evaluate(self, loader, device, error_threshold=0.5):
+    def evaluate(self, loader, device, multimodal=False):
         """
         Evaluate the model on the given data loader.
 
@@ -85,35 +83,15 @@ class BaseModel(nn.Module):
         """
         self.eval()
         self.reset_metrics()
-
-        bad_sample_attention_maps = []
-
         with torch.no_grad():
             for x, y in tqdm(loader, desc="Evaluating", dynamic_ncols=True):
-                x = x.to(device)
+                x = tuple(module.to(device) for module in x)
                 y_pred = self(x)
                 target = y.to(device)
                 self.update_metrics(y_pred, target)
+        return self.compute_metrics()
 
-                # Identify bad samples
-                errors = torch.abs(y_pred - y)
-                bad_samples = errors > error_threshold
-
-                # Save attention maps for bad samples
-                if bad_samples.any():
-                    for i, is_bad in enumerate(bad_samples.squeeze(1)):
-                        if is_bad:
-                            attention_maps = self.attention_weights_storage  # Extract attention maps
-                            bad_sample_attention_maps.append({
-                                "input": x[i].cpu(),
-                                "target": y[i].cpu(),
-                                "prediction": y_pred[i].cpu(),
-                                "attention_maps": [attn.cpu() for attn in attention_maps]
-                            })
-
-        return self.compute_metrics(), bad_sample_attention_maps
-
-    def train_model(self, train_loader, optimizer, device):
+    def train_model(self, train_loader, optimizer, device, multimodal=False):
         """
         Train the model on the given data loader.
 
@@ -125,13 +103,13 @@ class BaseModel(nn.Module):
         self.train()
         for x, y in tqdm(train_loader, desc="Training".ljust(10), leave=False, dynamic_ncols=True):
             self.zero_grad()
-            x = x.to(device)
+            x = tuple(module.to(device) for module in x)
             y_pred = self(x)
             loss = self.train_loss(y_pred, y.to(device))
             loss.backward()
             optimizer.step()
 
-    def validate_model(self, validation_loader, device):
+    def validate_model(self, validation_loader, device, multimodal=False):
         """
         Validate the model on the given data loader.
         Args:
@@ -141,19 +119,24 @@ class BaseModel(nn.Module):
         self.eval()
         with torch.no_grad():
             for x, y in tqdm(validation_loader, desc="Validation".ljust(10), leave=False, dynamic_ncols=True):
-                x = x.to(device)
+                x = tuple(module.to(device) for module in x)
                 y_pred = self(x)
                 self.validation_loss(y_pred, y.to(device))
 
     def train_loss(self, predictions, targets):
-        loss = self.loss_function(
-                input=predictions,
-                target=targets,
-                **self.loss_function_params
-        )
-        self.train_epoch_loss += loss.item()
-        self.train_batch_idx += 1
-        return loss
+        try:
+            loss = self.loss_function(
+                    input=predictions,
+                    target=targets,
+                    **self.loss_function_params
+            )
+            self.train_epoch_loss += loss.item()
+            self.train_batch_idx += 1
+            return loss
+        except Exception as e:
+            print(f'Prediction shape: {predictions.shape}')
+            print(f'Target shape: {targets.shape}')
+            raise e
 
     def validation_loss(self, predictions, targets):
         loss = self.loss_function(

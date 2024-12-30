@@ -18,8 +18,8 @@ class VisionTransformer(BaseModel):
     def __init__(self,
                  img_size=400,
                  patch_size=16,
-                 in_chans=1,
-                 num_classes=1000,
+                 in_chans=9,
+                 num_classes=1,
                  embed_dim=768,
                  depth=12,
                  num_heads=12,
@@ -37,7 +37,7 @@ class VisionTransformer(BaseModel):
             img_size (int, tuple): input image size
             patch_size (int, tuple): patch size
             in_chans (int): number of input channels
-            num_classes (int): number of classes for classification head
+            num_classes (int): number of output channels for segmentation mask
             embed_dim (int): embedding dimension
             depth (int): depth of transformer
             num_heads (int): number of attention heads
@@ -58,6 +58,7 @@ class VisionTransformer(BaseModel):
 
         self.patch_embed = PatchEmbed(
                 img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
@@ -72,18 +73,8 @@ class VisionTransformer(BaseModel):
             for i in range(depth)])
         self.norm = norm_layer(embed_dim)
 
-        # Representation layer
-        if representation_size:
-            self.num_features = representation_size
-            self.pre_logits = nn.Sequential(OrderedDict([
-                ('fc', nn.Linear(embed_dim, representation_size)),
-                ('act', nn.Tanh())
-            ]))
-        else:
-            self.pre_logits = nn.Identity()
-
-        # Classifier head
-        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+        # Final convolution for segmentation mask
+        self.segmentation_head = nn.Conv2d(embed_dim, num_classes, kernel_size=1)
 
         nn.init.trunc_normal_(self.pos_embed, std=.02)
         nn.init.trunc_normal_(self.cls_token, std=.02)
@@ -103,29 +94,47 @@ class VisionTransformer(BaseModel):
         return {'pos_embed', 'cls_token'}
 
     def get_classifier(self):
-        return self.head
+        return self.segmentation_head
 
     def reset_classifier(self, num_classes, global_pool=''):
         self.num_classes = num_classes
-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.segmentation_head = nn.Conv2d(self.embed_dim, num_classes, kernel_size=1)
 
     def forward_features(self, x):
-        B = x.shape[0]
-        x = self.patch_embed(x)
+        """
+        Args:
+            x: Tuple containing:
+               - fire_state: Tensor of shape (batch_size, fire_frame_index, bitmask channel, height, width)
+               - landscape_features: Tensor of shape (batch_size, 8, height, width)
+        """
+        x1, x2 = x
 
-        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
-        x = torch.cat((cls_tokens, x), dim=1)
+        # Flatten fire_state temporal dimension
+        B, T, C1, H, W = x1.shape
+        x1 = x1.view(B, -1, H, W)  # (batch_size, fire_frame_index * bitmask_channel, height, width)
+
+        # Combine fire_state and landscape_features
+        x = torch.cat((x1, x2), dim=1)  # (batch_size, fire_frame_index * bitmask_channel + landscape_channels, height, width)
+
+        # Patch embedding
+        x = self.patch_embed(x)  # (batch_size, num_patches, embed_dim)
+
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # (batch_size, 1, embed_dim)
+        x = torch.cat((cls_tokens, x), dim=1)  # (batch_size, num_patches + 1, embed_dim)
         x = x + self.pos_embed
         x = self.pos_drop(x)
 
         for blk in self.blocks:
             x = blk(x)
 
-        x = self.norm(x)[:, 0]
-        x = self.pre_logits(x)
-        return x
+        x = self.norm(x)
+        return x[:, 1:]  # Exclude cls token
 
     def forward(self, x):
-        x = self.forward_features(x)
-        x = self.head(x)
+        x = self.forward_features(x)  # (batch_size, num_patches, embed_dim)
+        B, _, H, W = x.shape
+        x = x.transpose(1, 2).reshape(B, self.embed_dim, H // self.patch_embed.patch_size, W // self.patch_embed.patch_size)
+        x = self.segmentation_head(x)  # (batch_size, num_classes, H, W)
+        x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=False)  # Upsample to input size
         return x
+
