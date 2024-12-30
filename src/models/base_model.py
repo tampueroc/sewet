@@ -101,13 +101,14 @@ class BaseModel(nn.Module):
             device (torch.device): Device to run the training.
         """
         self.train()
-        for x, y in tqdm(train_loader, desc="Training".ljust(10), leave=False, dynamic_ncols=True):
-            self.zero_grad()
-            x = tuple(module.to(device) for module in x)
-            y_pred = self(x)
-            loss = self.train_loss(y_pred, y.to(device))
-            loss.backward()
-            optimizer.step()
+        with torch.autocast('cuda', dtype=torch.float16, enabled=True):
+            for x, y in tqdm(train_loader, desc="Training".ljust(10), leave=False, dynamic_ncols=True):
+                self.zero_grad()
+                x = tuple(module.to(device) for module in x)
+                y_pred = self(x)
+                loss = self.train_loss(y_pred, y.to(device))
+                loss.backward()
+                optimizer.step()
 
     def validate_model(self, validation_loader, device, multimodal=False):
         """
