@@ -57,9 +57,9 @@ class VisionTransformer(BaseModel):
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
 
         self.fire_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+            img_size=img_size, patch_size=patch_size, in_chans=1, embed_dim=embed_dim)
         self.landscape_embed = PatchEmbed(
-            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+            img_size=img_size, patch_size=patch_size, in_chans=8, embed_dim=embed_dim)
 
         num_patches = self.fire_embed.num_patches
 
