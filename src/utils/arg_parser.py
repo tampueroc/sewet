@@ -25,6 +25,8 @@ def arg_parser():
                         help="Number of epochs for training (default: %(default)s)")
     parser.add_argument('-depth' , type=int, default=6,
                         help='Depth of the model')
+    parser.add_argument('-embed_dim' , type=int, default=512,
+                        help='Embedding dimension of the model')
 
     parser.add_argument('-gpu', type=str, default='0',
                       help='GPU to run the model on')
