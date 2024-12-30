@@ -122,13 +122,22 @@ class VisionTransformer(BaseModel):
         x2 = self.landscape_embed(x2)  # (batch_size, num_patches, embed_dim)
         print(f"Landscape Embedding: {x2.shape}")
 
-        # Concatenate fire and landscape embeddings
-        x = torch.cat((x1, x2), dim=1)
-        print(f"Concatenated Embedding: {x.shape}")
+        # CLS Tokens (batch_size, 1, Embed_dim)
+        cls_tokens = self.cls_token.expand(B, -1, -1)
+        # Shape: (batch_size, num_patches + 1, embed_dim)
+        x1 = torch.cat((cls_tokens, x1), dim=1)
+        # Shape: (batch_size, num_patches + 1, embed_dim)
+        x2 = torch.cat((cls_tokens, x2), dim=1)
 
-        cls_tokens = self.cls_token.expand(B, -1, -1)  # (batch_size, 1, embed_dim)
-        x = torch.cat((cls_tokens, x), dim=1)  # (batch_size, num_patches + 1, embed_dim)
-        x = x + self.pos_embed
+        # Positional embedding
+        pos_embed = self.pos_embed.expand(B, -1, -1)
+        x1 = x1 + pos_embed
+        x2 = x2 + pos_embed
+
+        # Concataneate the two embeddings
+        x = torch.cat((x1, x2), dim=-1)
+
+        # Dropout
         x = self.pos_drop(x)
 
         for blk in self.blocks:
