@@ -36,6 +36,9 @@ model = VisionTransformer(
     in_chans=1,
     depth=args.depth
 )
+total_trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f'Total trainable parameters: {total_trainable_params}')
+
 
 if args.device == 'cuda' and torch.cuda.is_available():
     device = torch.device(f'cuda:{args.gpu}')
