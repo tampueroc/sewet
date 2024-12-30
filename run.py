@@ -15,7 +15,7 @@ fire_dataset = FireDataset(
         transform=None,
         split='train',
         weather=False,
-        topological_features=False
+        topological_features=True
     )
 train_dataset, validation_dataset, test_dataset = torch.utils.data.random_split(fire_dataset, [0.8, 0.1, 0.1])
 # Dataloader

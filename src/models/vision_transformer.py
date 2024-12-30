@@ -56,10 +56,12 @@ class VisionTransformer(BaseModel):
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
 
-        self.patch_embed = PatchEmbed(
-                img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+        self.fire_embed = PatchEmbed(
+            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+        self.landscape_embed = PatchEmbed(
+            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
 
-        num_patches = self.patch_embed.num_patches
+        num_patches = self.fire_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
@@ -104,20 +106,19 @@ class VisionTransformer(BaseModel):
         """
         Args:
             x: Tuple containing:
-               - fire_state: Tensor of shape (batch_size, fire_frame_index, bitmask channel, height, width)
+               - fire_state: Tensor of shape (batch_size, fire_frame_index, bitmask, height, width)
                - landscape_features: Tensor of shape (batch_size, 8, height, width)
         """
         x1, x2 = x
 
-        # Flatten fire_state temporal dimension
+        # Shape: (batch_size, fire_frame_index, bitmask, height, width)
         B, T, C1, H, W = x1.shape
-        x1 = x1.view(B, -1, H, W)  # (batch_size, fire_frame_index * bitmask_channel, height, width)
-
-        # Combine fire_state and landscape_features
-        x = torch.cat((x1, x2), dim=1)  # (batch_size, fire_frame_index * bitmask_channel + landscape_channels, height, width)
+        # Shape: (batch_size, fire_frame_index * bitmask, height, width)
+        x1 = x1.view(B, -1, H, W)
 
         # Patch embedding
-        x = self.patch_embed(x)  # (batch_size, num_patches, embed_dim)
+        x1 = self.fire_embed(x1)  # (batch_size, num_patches, embed_dim)
+        x2 = self.landscape_embed(x2)  # (batch_size, num_patches, embed_dim)
 
         cls_tokens = self.cls_token.expand(B, -1, -1)  # (batch_size, 1, embed_dim)
         x = torch.cat((cls_tokens, x), dim=1)  # (batch_size, num_patches + 1, embed_dim)
