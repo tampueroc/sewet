@@ -1,6 +1,5 @@
 import torch.nn as nn
 import torch
-from torch.cuda.amp import autocast
 from flash_attn import flash_attn_qkvpacked_func
 
 class Attention(nn.Module):
@@ -18,7 +17,7 @@ class Attention(nn.Module):
 
     def forward(self, x):
         B, N, C = x.shape
-        with autocast(device_type='cuda', dtype=torch.float16):
+        with torch.autocast(device_type='cuda', dtype=torch.float16, enabled=True):
             qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads)
             attn_output = flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=self.scale)
 
