@@ -149,9 +149,11 @@ class VisionTransformer(BaseModel):
 
     def forward(self, x):
         x = self.forward_features(x)  # (batch_size, num_patches, embed_dim)
-        B, _, H, W = x.shape
-        x = x.transpose(1, 2).reshape(B, self.embed_dim, H // self.patch_embed.patch_size, W // self.patch_embed.patch_size)
+        B, N, C = x.shape
+        H = W = int(N ** 0.5)
+        x = x.transpose(1, 2).reshape(B, C, H, W)
         x = self.segmentation_head(x)  # (batch_size, num_classes, H, W)
-        x = F.interpolate(x, size=(H, W), mode='bilinear', align_corners=False)  # Upsample to input size
+        x = F.interpolate(x, size=(H * self.patch_embed.patch_size, W * self.patch_embed.patch_size),
+                      mode='bilinear', align_corners=False)
         return x
 
