@@ -119,9 +119,7 @@ class VisionTransformer(BaseModel):
 
         # Patch embedding
         x1 = self.fire_embed(x1)  # (batch_size, num_patches, embed_dim)
-        print(f"Fire Embedding: {x1.shape}")
         x2 = self.landscape_embed(x2)  # (batch_size, num_patches, embed_dim)
-        print(f"Landscape Embedding: {x2.shape}")
 
         # CLS Tokens (batch_size, 1, Embed_dim)
         cls_tokens = self.cls_token.expand(B, -1, -1)
